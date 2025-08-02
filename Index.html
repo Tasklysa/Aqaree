@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المكتب العقاري</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+        }
+        /* إخفاء الأسهم في حقول الأرقام */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        /* تخصيص الطباعة */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm text-center">
+            <img src="https://i.imgur.com/T6qVG2M.png" alt="شعار المكتب" class="w-24 mx-auto mb-4">
+            <h2 class="text-2xl font-bold mb-4">تسجيل الدخول</h2>
+            <p class="text-gray-600 mb-6">الرجاء إدخال اسم المكتب ورمز التفعيل.</p>
+            <form id="login-form">
+                <input type="text" id="username-input" class="w-full p-3 border rounded-lg text-center" placeholder="الرجاء إدخال الاسم" required>
+                <input type="password" id="activation-code-input" class="w-full p-3 border rounded-lg text-center mt-4" placeholder="رمز التفعيل" required>
+                <div class="mt-4 flex items-center justify-center">
+                    <input type="checkbox" id="terms-checkbox" class="ml-2 h-4 w-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500">
+                    <label for="terms-checkbox" class="text-sm text-gray-600">أوافق على <a href="#" id="terms-link" class="text-teal-600 underline hover:text-teal-800">شروط الاستخدام</a></label>
+                </div>
+                <button type="submit" id="login-button" class="w-full bg-teal-600 text-white px-4 py-3 rounded-lg hover:bg-teal-700 mt-4 font-bold disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                    دخول
+                </button>
+            </form>
+            <p class="mt-6 text-sm text-gray-500">
+                ليس لديك رمز تفعيل؟ <a href="https://wa.me/966539301331" target="_blank" class="text-green-600 font-semibold hover:underline">اضغط هنا للشراء عبر واتساب</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Terms Modal -->
+    <div id="terms-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+            <h2 class="text-2xl font-bold mb-4">سياسة الاستخدام والشروط</h2>
+            <div class="text-right space-y-4 max-h-80 overflow-y-auto pr-2 text-gray-700">
+                <h3 class="font-bold text-gray-800">1. المبادئ الأخلاقية:</h3>
+                <p>يلتزم المستخدم بالتعامل بصدق وأمانة مع جميع الأطراف، والحفاظ على سرية معلومات العملاء، وتقديم معلومات دقيقة وواضحة عن العقارات، والالتزام بالأنظمة والقوانين العقارية المحلية.</p>
+                <h3 class="font-bold mt-4 text-gray-800">2. إخلاء المسؤولية وحفظ البيانات:</h3>
+                <p>هذا النظام يعمل بشكل محلي على جهازك فقط. المنصة غير مسؤولة عن أي فقدان للبيانات قد يحدث نتيجة لأي سبب كان (مثل تلف الجهاز أو حذف الملفات).</p>
+                <p class="font-bold text-teal-700 bg-teal-50 p-3 rounded-lg">نوصي بشدة بتصدير بياناتك (عبر زر "تصدير CSV" أو "طباعة") بشكل دوري، مرة كل شهر على الأقل، وحفظها في مكان آمن كنسخة احتياطية لتفادي فقدانها.</p>
+                <p class="mt-2">بالموافقة، أنت تقر بأنك قرأت وفهمت هذه الشروط وتوافق على الالتزام بها.</p>
+            </div>
+            <button id="close-terms-modal" class="w-full bg-teal-600 text-white px-4 py-3 rounded-lg hover:bg-teal-700 mt-6 font-bold">
+                فهمت وأوافق
+            </button>
+        </div>
+    </div>
+
+    <div class="flex min-h-screen">
+        <!-- الشريط الجانبي -->
+        <aside class="w-64 bg-white shadow-lg flex-shrink-0 no-print flex flex-col">
+            <div class="p-6 flex-grow">
+                <img src="https://i.imgur.com/T6qVG2M.png" alt="شعار المكتب" class="w-32 mx-auto mb-8">
+                <div id="user-display" class="text-center my-4"></div>
+                <nav id="nav-menu">
+                    <a href="#dashboard" class="nav-link bg-teal-50 border-r-4 border-teal-500 text-teal-600 flex items-center p-3 my-2 rounded-lg font-bold">
+                        <svg class="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                        لوحة التحكم
+                    </a>
+                    <a href="#offers" class="nav-link flex items-center p-3 my-2 rounded-lg hover:bg-gray-100">
+                        <svg class="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        إدارة العروض
+                    </a>
+                    <a href="#requests" class="nav-link flex items-center p-3 my-2 rounded-lg hover:bg-gray-100">
+                        <svg class="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                        إدارة الطلبات
+                    </a>
+                    <a href="#rented" class="nav-link flex items-center p-3 my-2 rounded-lg hover:bg-gray-100">
+                        <svg class="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        إدارة الأملاك والعقود
+                    </a>
+                    <a href="#collections" class="nav-link flex items-center p-3 my-2 rounded-lg hover:bg-gray-100">
+                        <svg class="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01M12 6v-1m0-1V4m0 2.01M18 10a6 6 0 11-12 0 6 6 0 0112 0z"></path></svg>
+                        التحصيل والصيانة
+                    </a>
+                    <a href="#expenses" class="nav-link flex items-center p-3 my-2 rounded-lg hover:bg-gray-100">
+                        <svg class="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"></path></svg>
+                        المصروفات
+                    </a>
+                    <a href="#archive" class="nav-link flex items-center p-3 my-2 rounded-lg hover:bg-gray-100">
+                        <svg class="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        الأرشيف
+                    </a>
+                </nav>
+            </div>
+            <div class="p-4 border-t space-y-2">
+                <!-- Export Button -->
+                <button id="export-all-btn" class="w-full flex items-center justify-center p-3 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">
+                     <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span>تصدير البيانات</span>
+                </button>
+                <!-- Import Button -->
+                <label for="import-file-input" class="cursor-pointer w-full flex items-center justify-center p-3 rounded-lg text-purple-600 bg-purple-50 hover:bg-purple-100 font-medium">
+                     <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    <span>استيراد البيانات</span>
+                </label>
+                <input type="file" id="import-file-input" class="hidden" accept=".json">
+    
+                <a href="https://wa.me/966539301331" target="_blank" class="flex items-center justify-center p-3 rounded-lg text-green-600 hover:bg-green-50 font-medium">
+                    <svg class="w-6 h-6 ml-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.31 20.58C8.75 21.39 10.36 21.82 12.04 21.82C17.5 21.82 21.95 17.37 21.95 11.91C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2ZM12.04 20.13C10.48 20.13 8.98 19.69 7.67 18.89L7.33 18.67L4.31 19.49L5.15 16.55L4.92 16.21C4.04 14.83 3.59 13.28 3.59 11.91C3.59 7.31 7.4 3.49 12.04 3.49C14.28 3.49 16.33 4.36 17.89 5.93C19.45 7.49 20.32 9.54 20.32 11.91C20.32 16.51 16.68 20.13 12.04 20.13ZM16.56 14.46C16.33 14.93 15.34 15.45 14.97 15.54C14.6 15.63 14.12 15.64 13.79 15.46C13.46 15.28 12.57 14.96 11.54 14.02C10.25 12.84 9.54 11.41 9.36 11.1C9.18 10.79 9.04 10.62 8.85 10.33C8.67 10.04 8.53 9.87 8.4 9.68C8.27 9.49 8.14 9.31 8.02 9.12C7.9 8.93 7.72 8.76 7.52 8.47C7.32 8.18 7.12 7.89 7.12 7.56C7.12 7.23 7.29 6.95 7.47 6.77C7.65 6.59 7.87 6.5 8.08 6.5C8.26 6.5 8.42 6.5 8.56 6.51C8.71 6.53 8.85 6.53 8.99 6.77C9.13 7.01 9.35 7.54 9.45 7.68C9.55 7.82 9.64 7.99 9.59 8.13C9.54 8.27 9.49 8.36 9.35 8.5C9.21 8.64 9.09 8.75 8.99 8.85C8.89 8.95 8.78 9.06 8.92 9.3C9.06 9.54 9.44 10.11 9.96 10.6C10.73 11.33 11.42 11.68 11.66 11.82C11.9 11.96 12.08 11.94 12.22 11.77C12.38 11.58 12.78 11.04 13.02 10.75C13.26 10.46 13.51 10.41 13.75 10.5C13.99 10.59 14.86 11.03 15.09 11.13C15.32 11.23 15.5 11.27 15.59 11.37C15.68 11.47 15.68 11.75 15.45 12.22C15.22 12.69 14.69 13.21 14.46 13.39C14.23 13.57 14.23 13.71 14.41 13.85C14.59 13.99 15.22 14.23 15.45 14.32C15.68 14.41 15.82 14.41 15.96 14.46C16.1 14.51 16.33 13.99 16.56 14.46Z"/></svg>
+                    <span>الدعم الفني</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- المحتوى الرئيسي -->
+        <main class="flex-1 p-4 sm:p-8">
+            <div id="content-area">
+                <!-- صفحة لوحة التحكم -->
+                <div id="dashboard" class="page">
+                    <h1 class="text-3xl font-bold mb-6">لوحة التحكم الرئيسية</h1>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center">
+                            <div class="bg-teal-100 p-4 rounded-full">
+                                <svg class="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                            </div>
+                            <div class="mr-4">
+                                <p class="text-gray-500">إجمالي العروض</p>
+                                <p id="stats-offers" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center">
+                            <div class="bg-blue-100 p-4 rounded-full">
+                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                            </div>
+                            <div class="mr-4">
+                                <p class="text-gray-500">إجمالي الطلبات</p>
+                                <p id="stats-requests" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-md flex items-center">
+                            <div class="bg-green-100 p-4 rounded-full">
+                                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            </div>
+                            <div class="mr-4">
+                                <p class="text-gray-500">العقود السارية</p>
+                                <p id="stats-rented" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                        <!-- تنبيهات هامة -->
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h2 class="text-xl font-bold mb-4">تنبيهات هامة</h2>
+                            <div id="alerts-container" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                <!-- Alerts will be rendered here -->
+                            </div>
+                        </div>
+                        <!-- متتبع المهام اليومية -->
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h2 class="text-xl font-bold mb-4">متتبع المهام اليومية</h2>
+                            <form id="task-form" class="flex flex-wrap gap-2 mb-4 items-center">
+                                <input type="text" id="task-input" class="flex-grow p-2 border rounded-lg" placeholder="أضف مهمة جديدة..." required>
+                                <select id="task-priority" class="p-2 border rounded-lg bg-white">
+                                    <option value="3">أولوية: عادية</option>
+                                    <option value="5">أولوية: قصوى</option>
+                                    <option value="4">أولوية: عالية</option>
+                                    <option value="2">أولوية: منخفضة</option>
+                                    <option value="1">أولوية: دنيا</option>
+                                </select>
+                                <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 shrink-0">إضافة</button>
+                            </form>
+                            <div id="task-list" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                <!-- Tasks will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                     <!-- Added Notes section back -->
+                    <div class="bg-white p-6 rounded-xl shadow-md mt-6">
+                        <h2 class="text-xl font-bold mb-4">ملاحظات هامة</h2>
+                        <textarea id="notes-area" class="w-full h-40 p-3 border rounded-lg focus:ring-teal-500 focus:border-teal-500" placeholder="اكتب ملاحظاتك الهامة هنا... سيتم حفظها تلقائيًا."></textarea>
+                    </div>
+                </div>
+
+                <!-- صفحات الأقسام الأخرى -->
+                <div id="offers" class="page hidden"></div>
+                <div id="requests" class="page hidden"></div>
+                <div id="rented" class="page hidden"></div>
+                <div id="collections" class="page hidden"></div>
+                <div id="expenses" class="page hidden"></div>
+                <div id="archive" class="page hidden"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Template -->
+    <div id="modal-template" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl transform transition-all max-h-screen overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold" id="modal-title"></h3>
+                    <button class="close-modal-btn text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div id="modal-body" class="mt-4">
+                    <!-- Form content will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --------------------------------------------------
+    // DATABASE & STATE MANAGEMENT
+    // --------------------------------------------------
+    let db = {};
+
+    let editingItemId = null; 
+    let currentUserName = null;
+
+    function getSampleData() {
+        return {
+            offers: [{
+                id: 'id_sample_offer_1',
+                marketerName: 'مكتب النهضة للعقارات',
+                marketerPhone: '0501234567',
+                offerType: 'بيع',
+                propertyType: 'فيلا',
+                location: 'الرياض - حي الياسمين',
+                price: '2,500,000 ريال',
+                propertyDimensions: '20x30',
+                propertyAge: '5 سنوات',
+                status: 'متاح'
+            }],
+            requests: [{
+                id: 'id_sample_request_1',
+                clientName: 'عبدالله محمد',
+                contactNumber: '0557654321',
+                requestType: 'إيجار',
+                location: 'الرياض - حي النرجس',
+                budget: '80,000 ريال سنوياً',
+                lastUpdate: 'يبحث عن شقة 3 غرف',
+                status: 'مفتوح'
+            }],
+            rented: [{
+                id: 'id_sample_rented_1',
+                propertyAddress: 'شقة 15، عمارة 8، حي الملقا',
+                ownerName: 'خالد الفيصل',
+                ownerPhone: '0533344455',
+                tenantName: 'سارة أحمد',
+                tenantPhone: '0544455566',
+                contractEndDate: '2026-07-31',
+                rentValue: '65,000 ريال',
+                contractStatus: 'ساري'
+            }],
+            collections: [{
+                id: 'id_sample_collection_1',
+                date: '2025-08-01',
+                type: 'تحصيل دفعة',
+                amount: '16,250 ريال',
+                property: 'شقة 15، حي الملقا',
+                status: 'تم',
+                details: 'دفعة الربع الثالث'
+            }],
+            expenses: [{
+                id: 'id_sample_expense_1',
+                date: '2025-08-02',
+                category: 'تسويق',
+                description: 'إعلان ممول لعرض فيلا الياسمين',
+                amount: '350 ريال'
+            }],
+            archive: {
+                offers: [],
+                requests: []
+            },
+            notes: 'تذكير: تجديد رخصة فال يوم 15 أغسطس. \n- التواصل مع المالك خالد بخصوص صيانة المصعد.',
+            tasks: [{
+                id: 'task_sample_1',
+                text: 'متابعة العميل عبدالله بخصوص شقة النرجس',
+                priority: '5',
+                completed: false
+            }]
+        };
+    }
+
+    function loadDatabase() {
+        const savedDb = localStorage.getItem('realEstateDb');
+        if (savedDb) {
+            db = JSON.parse(savedDb);
+            // Ensure new structures exist for older versions
+            if (!db.tasks) db.tasks = []; 
+            if (!db.expenses) db.expenses = [];
+            if (!db.archive) db.archive = { offers: [], requests: [] };
+        } else {
+            // If no database exists, load sample data
+            db = getSampleData();
+            saveDatabase();
+        }
+        currentUserName = localStorage.getItem('realEstateUser');
+    }
+
+    function saveDatabase() {
+        localStorage.setItem('realEstateDb', JSON.stringify(db));
+    }
+
+    // --------------------------------------------------
+    // LOGIN & USER MANAGEMENT
+    // --------------------------------------------------
+    const loginModal = document.getElementById('login-modal');
+    const loginForm = document.getElementById('login-form');
+    const usernameInput = document.getElementById('username-input');
+    const userDisplay = document.getElementById('user-display');
+    const termsModal = document.getElementById('terms-modal');
+    const termsLink = document.getElementById('terms-link');
+    const closeTermsModalBtn = document.getElementById('close-terms-modal');
+    const termsCheckbox = document.getElementById('terms-checkbox');
+    const loginButton = document.getElementById('login-button');
+
+    function showLoginModal() {
+        loginModal.classList.remove('hidden');
+        usernameInput.focus();
+    }
+
+    function hideLoginModal() {
+        loginModal.classList.add('hidden');
+    }
+
+    function showTermsModal() {
+        termsModal.classList.remove('hidden');
+    }
+
+    function hideTermsModal() {
+        termsModal.classList.add('hidden');
+    }
+
+    function handleLogin(e) {
+        if (e) e.preventDefault();
+        const name = usernameInput.value.trim();
+        const activationCodeInput = document.getElementById('activation-code-input');
+        const activationCode = activationCodeInput.value.trim();
+        
+        const validCodes = ['TASKL1', '2PRO5X', 'VIP7A7', 'B3STOK', 'G4SALE', 'H5RENT', 'J6SOLD', 'K7DEAL', 'L8PROP', 'M9LAND', 'N1HOME', 'P2VIEW', 'Q3CITY', 'R4PLOT', 'S5VILA', 'T6FLAT', 'U7BLDG', 'V8ESTA', 'W9REAL', 'X1YARD', 'Z2ROOF', 'A3DOOR', 'B4WALL', 'C5GATE', 'D6KEYX', 'E7LOCK', 'F8RENT', 'G9SALE', 'H1SOLD', 'J2DEAL', 'K3PROP', 'L4LAND', 'M5HOME', 'N6VIEW', 'P7CITY', 'Q8PLOT', 'R9VILA', 'S1FLAT', 'T2BLDG', 'U3ESTA', 'V4REAL', 'W5YARD', 'X6ROOF', 'Z7DOOR', 'A8WALL', 'B9GATE', 'C1KEYX', 'D2LOCK', 'E3RENT', 'F4SALE', 'G5SOLD', 'H6DEAL', 'J7PROP', 'K8LAND', 'L9HOME', 'M1VIEW', 'N2CITY', 'P3PLOT', 'Q4VILA', 'R5FLAT', 'S6BLDG', 'T7ESTA', 'U8REAL', 'V9YARD', 'W1ROOF', 'X2DOOR', 'Z3WALL', 'A4GATE', 'B5KEYX', 'C6LOCK', 'D7RENT', 'E8SALE', 'F9SOLD', 'G1DEAL', 'H2PROP', 'J3LAND', 'K4HOME', 'L5VIEW', 'M6CITY', 'N7PLOT', 'P8VILA', 'Q9FLAT', 'R1BLDG', 'S2ESTA', 'T3REAL', 'U4YARD', 'V5ROOF', 'W6DOOR', 'X7WALL', 'Z8GATE', 'A9KEYX', 'B1LOCK', 'C2RENT', 'D3SALE', 'E4SOLD', 'F5DEAL', 'G6PROP', 'H7LAND', 'J8HOME', 'K9VIEW', 'L1CITY', 'M2PLOT', 'N3VILA', 'P4FLAT', 'Q5BLDG', 'R6ESTA', 'S7REAL', 'T8YARD', 'U9ROOF', 'V1DOOR', 'W2WALL', 'X3GATE', 'Z4KEYX', 'A5LOCK', 'B6RENT', 'C7SALE', 'D8SOLD', 'E9DEAL', 'F1PROP', 'G2LAND', 'H3HOME', 'J4VIEW', 'K5CITY', 'L6PLOT', 'M7VILA', 'N8FLAT', 'P9BLDG', 'Q1ESTA', 'R2REAL', 'S3YARD', 'T4ROOF', 'U5DOOR', 'V6WALL', 'W7GATE', 'X8KEYX', 'Z9LOCK', 'A1RENT', 'B2SALE', 'C3SOLD', 'D4DEAL', 'E5PROP', 'F6LAND', 'G7HOME', 'H8VIEW', 'J9CITY', 'K1PLOT', 'L2VILA', 'M3FLAT', 'N4BLDG', 'P5ESTA', 'Q6REAL', 'R7YARD', 'S8ROOF', 'T9DOOR', 'U1WALL', 'V2GATE', 'W3KEYX', 'X4LOCK', 'Z5RENT', 'A6SALE', 'B7SOLD', 'C8DEAL', 'D9PROP', 'E1LAND', 'F2HOME', 'G3VIEW', 'H4CITY', 'J5PLOT', 'K6VILA', 'L7FLAT', 'M8BLDG', 'N9ESTA', 'P1REAL', 'Q2YARD', 'R3ROOF', 'S4DOOR', 'T5WALL', 'U6GATE', 'V7KEYX', 'W8LOCK', 'X9RENT', 'Z1SALE', 'A2SOLD', 'B3DEAL', 'C4PROP', 'D5LAND', 'E6HOME', 'F7VIEW', 'G8CITY', 'H9PLOT', 'J1VILA', 'K2FLAT', 'L3BLDG', 'M4ESTA', 'N5REAL', 'P6YARD', 'Q7ROOF', 'R8DOOR', 'S9WALL', 'T1GATE', 'U2KEYX', 'V3LOCK', 'W4RENT', 'X5SALE', 'Z6SOLD', 'A7DEAL', 'B8PROP', 'C9LAND', 'D1HOME', 'E2VIEW', 'F3CITY', 'G4PLOT', 'H5VILA', 'J6FLAT', 'K7BLDG', 'L8ESTA', 'M9REAL', 'N1YARD', 'P2ROOF', 'Q3DOOR', 'R4WALL', 'S5GATE', 'T6KEYX', 'U7LOCK', 'V8RENT', 'W9SALE', 'X1SOLD', 'Z2DEAL', 'A3PROP', 'B4LAND', 'C5HOME', 'D6VIEW', 'E7CITY', 'F8PLOT', 'G9VILA', 'H1FLAT', 'J2BLDG', 'K3ESTA', 'L4REAL', 'M5YARD', 'N6ROOF', 'P7DOOR', 'Q8WALL', 'R9GATE', 'S1KEYX', 'T2LOCK', 'U3RENT', 'V4SALE', 'W5SOLD', 'X6DEAL', 'Z7PROP', 'A8LAND', 'B9HOME', 'C1VIEW', 'D2CITY', 'E3PLOT', 'F4VILA', 'G5FLAT', 'H6BLDG', 'J7ESTA', 'K8REAL', 'L9YARD', 'M1ROOF', 'N2DOOR', 'P3WALL', 'Q4GATE', 'R5KEYX', 'S6LOCK', 'T7RENT', 'U8SALE', 'V9SOLD', 'W1DEAL', 'X2PROP', 'Z3LAND', 'A4HOME', 'B5VIEW', 'C6CITY', 'D7PLOT', 'E8VILA', 'F9FLAT', 'G1BLDG', 'H2ESTA', 'J3REAL', 'K4YARD', 'L5ROOF', 'M6DOOR', 'N7WALL', 'P8GATE', 'Q9KEYX', 'R1LOCK', 'S2RENT', 'T3SALE', 'U4SOLD', 'V5DEAL', 'W6PROP', 'X7LAND', 'Z8HOME', 'A9VIEW', 'B1CITY', 'C2PLOT', 'D3VILA', 'E4FLAT', 'F5BLDG', 'G6ESTA', 'H7REAL', 'J8YARD', 'K9ROOF', 'L1DOOR', 'M2WALL', 'N3GATE', 'P4KEYX', 'Q5LOCK', 'R6RENT', 'S7SALE', 'T8SOLD', 'U9DEAL', 'V1PROP', 'W2LAND', 'X3HOME', 'Z4VIEW', 'A5CITY', 'B6PLOT', 'C7VILA', 'D8FLAT', 'E9BLDG', 'F1ESTA', 'G2REAL', 'H3YARD', 'J4ROOF', 'K5DOOR', 'L6WALL', 'M7GATE', 'N8KEYX', 'P9LOCK', 'Q1RENT', 'R2SALE', 'S3SOLD', 'T4DEAL', 'U5PROP', 'V6LAND', 'W7HOME', 'X8VIEW', 'Z9CITY', 'A1PLOT', 'B2VILA', 'C3FLAT', 'D4BLDG', 'E5ESTA', 'F6REAL', 'G7YARD', 'H8ROOF', 'J9DOOR', 'K1WALL', 'L2GATE', 'M3KEYX', 'N4LOCK', 'P5RENT', 'Q6SALE', 'R7SOLD', 'S8DEAL', 'T9PROP', 'U1LAND', 'V2HOME', 'W3VIEW', 'X4CITY', 'Z5PLOT', 'A6VILA', 'B7FLAT', 'C8BLDG', 'D9ESTA', 'E1REAL', 'F2YARD', 'G3ROOF', 'H4DOOR', 'J5WALL', 'K6GATE', 'L7KEYX', 'M8LOCK', 'N9RENT', 'P1SALE', 'Q2SOLD', 'R3DEAL', 'S4PROP', 'T5LAND', 'U6HOME', 'V7VIEW', 'W8CITY', 'X9PLOT', 'Z1VILA', 'A2FLAT', 'B3BLDG', 'C4ESTA', 'D5REAL', 'E6YARD', 'F7ROOF', 'G8DOOR', 'H9WALL', 'J1GATE', 'K2KEYX', 'L3LOCK', 'M4RENT', 'N5SALE', 'P6SOLD', 'Q7DEAL', 'R8PROP', 'S9LAND', 'T1HOME', 'U2VIEW', 'V3CITY', 'W4PLOT', 'X5VILA', 'Z6FLAT', 'A7BLDG', 'B8ESTA', 'C9REAL', 'D1YARD', 'E2ROOF', 'F3DOOR', 'G4WALL', 'H5GATE', 'J6KEYX', 'K7LOCK', 'L8RENT', 'M9SALE', 'N1SOLD', 'P2DEAL', 'Q3PROP', 'R4LAND', 'S5HOME', 'T6VIEW', 'U7CITY', 'V8PLOT', 'W9VILA', 'X1FLAT', 'Z2BLDG', 'A3ESTA', 'B4REAL', 'C5YARD', 'D6ROOF', 'E7DOOR', 'F8WALL', 'G9GATE', 'H1KEYX', 'J2LOCK', 'K3RENT', 'L4SALE', 'M5SOLD', 'N6DEAL', 'P7PROP', 'Q8LAND', 'R9HOME', 'S1VIEW', 'T2CITY', 'U3PLOT', 'V4VILA', 'W5FLAT', 'X6BLDG', 'Z7ESTA', 'A8REAL', 'B9YARD', 'C1ROOF', 'D2DOOR', 'E3WALL', 'F4GATE', 'G5KEYX', 'H6LOCK', 'J7RENT', 'K8SALE', 'L9SOLD', 'M1DEAL', 'N2PROP', 'P3LAND', 'Q4HOME', 'R5VIEW', 'S6CITY', 'T7PLOT', 'U8VILA', 'V9FLAT', 'W1BLDG', 'X2ESTA', 'Z3REAL', 'A4YARD', 'B5ROOF', 'C6DOOR', 'D7WALL', 'E8GATE', 'F9KEYX', 'G1LOCK', 'H2RENT', 'J3SALE', 'K4SOLD', 'L5DEAL', 'M6PROP', 'N7LAND', 'P8HOME', 'Q9VIEW', 'R1CITY', 'S2PLOT', 'T3VILA', 'U4FLAT', 'V5BLDG', 'W6ESTA', 'X7REAL', 'Z8YARD', 'A9ROOF', 'B1DOOR', 'C2WALL', 'D3GATE', 'E4KEYX', 'F5LOCK', 'G6RENT', 'H7SALE', 'J8SOLD', 'K9DEAL', 'L1PROP', 'M2LAND', 'N3HOME', 'P4VIEW', 'Q5CITY', 'R6PLOT', 'S7VILA', 'T8FLAT', 'U9BLDG', 'V1ESTA', 'W2REAL', 'X3YARD', 'Z4ROOF', 'A5DOOR', 'B6WALL', 'C7GATE', 'D8KEYX', 'E9LOCK', 'F1RENT', 'G2SALE', 'H3SOLD', 'J4DEAL', 'K5PROP', 'L6LAND', 'M7HOME', 'N8VIEW', 'P9CITY', 'Q1PLOT', 'R2VILA', 'S3FLAT', 'T4BLDG', 'U5ESTA', 'V6REAL', 'W7YARD', 'X8ROOF', 'Z9DOOR', 'A1WALL', 'B2GATE', 'C3KEYX', 'D4LOCK', 'E5RENT', 'F6SALE', 'G7SOLD', 'H8DEAL', 'J9PROP', 'K1LAND', 'L2HOME', 'M3VIEW', 'N4CITY', 'P5PLOT', 'Q6VILA', 'R7FLAT', 'S8BLDG', 'T9ESTA', 'U1REAL', 'V2YARD', 'W3ROOF', 'X4DOOR', 'Z5WALL', 'A6GATE', 'B7KEYX', 'C8LOCK', 'D9RENT', 'E1SALE', 'F2SOLD', 'G3DEAL', 'H4PROP', 'J5LAND', 'K6HOME', 'L7VIEW', 'M8CITY', 'N9PLOT', 'P1VILA', 'Q2FLAT', 'R3BLDG', 'S4ESTA', 'T5REAL', 'U6YARD', 'V7ROOF', 'W8DOOR', 'X9WALL', 'Z1GATE', 'A2KEYX', 'B3LOCK', 'C4RENT', 'D5SALE', 'E6SOLD', 'F7DEAL', 'G8PROP', 'H9LAND', 'J1HOME', 'K2VIEW', 'L3CITY', 'M4PLOT', 'N5VILA', 'P6FLAT', 'Q7BLDG', 'R8ESTA', 'S9REAL', 'T1YARD', 'U2ROOF', 'V3DOOR', 'W4WALL', 'X5GATE', 'Z6KEYX', 'A7LOCK', 'B8RENT', 'C9SALE', 'D1SOLD', 'E2DEAL', 'F3PROP', 'G4LAND', 'H5HOME', 'J6VIEW', 'K7CITY', 'L8PLOT', 'M9VILA', 'N1FLAT', 'P2BLDG', 'Q3ESTA', 'R4REAL', 'S5YARD', 'T6ROOF', 'U7DOOR', 'V8WALL', 'W9GATE', 'X1KEYX', 'Z2LOCK', 'A3RENT', 'B4SALE', 'C5SOLD', 'D6DEAL', 'E7PROP', 'F8LAND', 'G9HOME', 'H1VIEW', 'J2CITY', 'K3PLOT', 'L4VILA', 'M5FLAT', 'N6BLDG', 'P7ESTA', 'Q8REAL', 'R9YARD', 'S1ROOF', 'T2DOOR', 'U3WALL', 'V4GATE', 'W5KEYX', 'X6LOCK', 'Z7RENT', 'A8SALE', 'B9SOLD', 'C1DEAL', 'D2PROP', 'E3LAND', 'F4HOME', 'G5VIEW', 'H6CITY', 'J7PLOT', 'K8VILA', 'L9FLAT', 'M1ROOF', 'N2BLDG', 'P3ESTA', 'Q4REAL', 'R5YARD', 'S6ROOF', 'T7DOOR', 'U8WALL', 'V9GATE', 'W1KEYX', 'X2LOCK', 'Z3RENT', 'A4SALE', 'B5SOLD', 'C6DEAL', 'D7PROP', 'E8LAND', 'F9HOME', 'G1VIEW', 'H2CITY', 'J3PLOT', 'K4VILA', 'L5FLAT', 'M6BLDG', 'N7ESTA', 'P8REAL', 'Q9YARD', 'R1ROOF', 'S2DOOR', 'T3WALL', 'U4GATE', 'V5KEYX', 'W6LOCK', 'X7RENT', 'Z8SALE', 'A9SOLD', 'B1DEAL', 'C2PROP', 'D3LAND', 'E4HOME', 'F5VIEW', 'G6CITY', 'H7PLOT', 'J8VILA', 'K9FLAT', 'L1BLDG', 'M2ESTA', 'N3REAL', 'P4YARD', 'Q5ROOF', 'R6DOOR', 'S7WALL', 'T8GATE', 'U9KEYX', 'V1LOCK', 'W2RENT', 'X3SALE', 'Z4SOLD', 'A5DEAL', 'B6PROP', 'C7LAND', 'D8HOME', 'E9VIEW', 'F1CITY', 'G2PLOT', 'H3VILA', 'J4FLAT', 'K5BLDG', 'L6ESTA', 'M7REAL', 'N8YARD', 'P9ROOF', 'Q1DOOR', 'R2WALL', 'S3GATE', 'T4KEYX', 'U5LOCK', 'V6RENT', 'W7SALE', 'X8SOLD', 'Z9DEAL', 'A1PROP', 'B2LAND', 'C3HOME', 'D4VIEW', 'E5CITY', 'F6PLOT', 'G7VILA', 'H8FLAT', 'J9BLDG', 'K1ESTA', 'L2REAL', 'M3YARD', 'N4ROOF', 'P5DOOR', 'Q6WALL', 'R7GATE', 'S8KEYX', 'T9LOCK', 'U1RENT', 'V2SALE', 'W3SOLD', 'X4DEAL', 'Z5PROP', 'A6LAND', 'B7HOME', 'C8VIEW', 'D9CITY', 'E1PLOT', 'F2VILA', 'G3FLAT', 'H4BLDG', 'J5ESTA', 'K6REAL', 'L7YARD', 'M8ROOF', 'N9DOOR', 'P1WALL', 'Q2GATE', 'R3KEYX', 'S4LOCK', 'T5RENT', 'U6SALE', 'V7SOLD', 'W8DEAL', 'X9PROP', 'Z1LAND', 'A2HOME', 'B3VIEW', 'C4CITY', 'D5PLOT', 'E6VILA', 'F7FLAT', 'G8BLDG', 'H9ESTA', 'J1REAL', 'K2YARD', 'L3ROOF', 'M4DOOR', 'N5WALL', 'P6GATE', 'Q7KEYX', 'R8LOCK', 'S9RENT', 'T1SALE', 'U2SOLD', 'V3DEAL', 'W4PROP', 'X5LAND', 'Z6HOME', 'A7VIEW', 'B8CITY', 'C9PLOT', 'D1VILA', 'E2FLAT', 'F3BLDG', 'G4ESTA', 'H5REAL', 'J6YARD', 'K7ROOF', 'L8DOOR', 'M9WALL', 'N1GATE', 'P2KEYX', 'Q3LOCK', 'R4RENT', 'S5SALE', 'T6SOLD', 'U7DEAL', 'V8PROP', 'W9LAND', 'X1HOME', 'Z2VIEW', 'A3CITY', 'B4PLOT', 'C5VILA', 'D6FLAT', 'E7BLDG', 'F8ESTA', 'G9REAL', 'H1YARD', 'J2ROOF', 'K3DOOR', 'L4WALL', 'M5GATE', 'N6KEYX', 'P7LOCK', 'Q8RENT', 'R9SALE', 'S1SOLD', 'T2DEAL', 'U3PROP', 'V4LAND', 'W5HOME', 'X6VIEW', 'Z7CITY', 'A8PLOT', 'B9VILA', 'C1FLAT', 'D2BLDG', 'E3ESTA', 'F4REAL', 'G5YARD', 'H6ROOF', 'J7DOOR', 'K8WALL', 'L9GATE', 'M1KEYX', 'N2LOCK', 'P3RENT', 'Q4SALE', 'R5SOLD', 'S6DEAL', 'T7PROP', 'U8LAND', 'V9HOME', 'W1VIEW', 'X2CITY', 'Z3PLOT', 'A4VILA', 'B5FLAT', 'C6BLDG', 'D7ESTA', 'E8REAL', 'F9YARD', 'G1ROOF', 'H2DOOR', 'J3WALL', 'K4GATE', 'L5KEYX', 'M6LOCK', 'N7RENT', 'P8SALE', 'Q9SOLD', 'R1DEAL', 'S2PROP', 'T3LAND', 'U4HOME', 'V5VIEW', 'W6CITY', 'X7PLOT', 'Z8VILA', 'A9FLAT', 'B1BLDG', 'C2ESTA', 'D3REAL', 'E4YARD', 'F5ROOF', 'G6DOOR', 'H7WALL', 'J8GATE', 'K9KEYX', 'L1LOCK', 'M2RENT', 'N3SALE', 'P4SOLD', 'Q5DEAL', 'R6PROP', 'S7LAND', 'T8HOME', 'U9VIEW', 'V1CITY', 'W2PLOT', 'X3VILA', 'Z4FLAT', 'A5BLDG', 'B6ESTA', 'C7REAL', 'D8YARD', 'E9ROOF', 'F1DOOR', 'G2WALL', 'H3GATE', 'J4KEYX', 'K5LOCK', 'L6RENT', 'M7SALE', 'N8SOLD', 'P9DEAL', 'Q1PROP', 'R2LAND', 'S3HOME', 'T4VIEW', 'U5CITY', 'V6PLOT', 'W7VILA', 'X8FLAT', 'Z9BLDG', 'A1ESTA', 'B2REAL', 'C3YARD', 'D4ROOF', 'E5DOOR', 'F6WALL', 'G7GATE', 'H8KEYX', 'J9LOCK', 'K1RENT', 'L2SALE', 'M3SOLD', 'N4DEAL', 'P5PROP', 'Q6LAND', 'R7HOME', 'S8VIEW', 'T9CITY', 'U1PLOT', 'V2VILA', 'W3FLAT', 'X4BLDG', 'Z5ESTA', 'A6REAL', 'B7YARD', 'C8ROOF', 'D9DOOR', 'E1WALL', 'F2GATE', 'G3KEYX', 'H4LOCK', 'J5RENT', 'K6SALE', 'L7SOLD', 'M8DEAL', 'N9PROP', 'P1LAND', 'Q2HOME', 'R3VIEW', 'S4CITY', 'T5PLOT', 'U6VILA', 'V7FLAT', 'W8BLDG', 'X9ESTA', 'Z1REAL', 'A2YARD', 'B3ROOF', 'C4DOOR', 'D5WALL', 'E6GATE', 'F7KEYX', 'G8LOCK', 'H9RENT', 'J1SALE', 'K2SOLD', 'L3DEAL', 'M4PROP', 'N5LAND', 'P6HOME', 'Q7VIEW', 'R8CITY', 'S9PLOT', 'T1VILA', 'U2FLAT', 'V3BLDG', 'W4ESTA', 'X5REAL', 'Z6YARD', 'A7ROOF', 'B8DOOR', 'C9WALL', 'D1GATE', 'E2KEYX', 'F3LOCK', 'G4RENT', 'H5SALE', 'J6SOLD', 'K7DEAL', 'L8PROP', 'M9LAND', 'N1HOME', 'P2VIEW', 'Q3CITY', 'R4PLOT', 'S5VILA', 'T6FLAT', 'U7BLDG', 'V8ESTA', 'W9REAL', 'X1YARD', 'Z2ROOF']
+
+        if (name && validCodes.includes(activationCode)) {
+            currentUserName = name;
+            localStorage.setItem('realEstateUser', currentUserName);
+            displayUserName();
+            hideLoginModal();
+        } else if (!validCodes.includes(activationCode)) {
+            showAlertModal('رمز تفعيل غير صحيح', 'الرجاء التأكد من إدخال رمز التفعيل الصحيح للمتابعة.');
+            activationCodeInput.classList.add('border-red-500');
+            setTimeout(() => {
+                activationCodeInput.classList.remove('border-red-500');
+            }, 2000);
+        }
+    }
+
+    function displayUserName() {
+        if (currentUserName) {
+            userDisplay.innerHTML = `
+                <p class="font-bold text-teal-700">${currentUserName}</p>
+                <button id="logout-btn" class="text-sm text-gray-500 hover:text-red-600 underline">تغيير المستخدم</button>
+            `;
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        } else {
+            userDisplay.innerHTML = '';
+        }
+    }
+
+    function handleLogout() {
+        currentUserName = null;
+        localStorage.removeItem('realEstateUser');
+        userDisplay.innerHTML = '';
+        showLoginModal();
+    }
+
+    // --------------------------------------------------
+    // UI & NAVIGATION
+    // --------------------------------------------------
+    const navLinks = document.querySelectorAll('.nav-link');
+    const pages = document.querySelectorAll('.page');
+
+    function navigateTo(hash) {
+        pages.forEach(page => page.classList.add('hidden'));
+        navLinks.forEach(link => {
+            link.classList.remove('bg-teal-50', 'border-r-4', 'border-teal-500', 'text-teal-600', 'font-bold');
+        });
+
+        const activePage = document.querySelector(hash);
+        const activeLink = document.querySelector(`a[href="${hash}"]`);
+
+        if (activePage) {
+            activePage.classList.remove('hidden');
+            const pageId = hash.substring(1);
+            if (renderFunctions[pageId]) {
+                renderFunctions[pageId]();
+            }
+        }
+        if (activeLink) {
+            activeLink.classList.add('bg-teal-50', 'border-r-4', 'border-teal-500', 'text-teal-600', 'font-bold');
+        }
+    }
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const hash = e.currentTarget.getAttribute('href');
+            window.location.hash = hash;
+        });
+    });
+
+    window.addEventListener('hashchange', () => {
+        navigateTo(window.location.hash || '#dashboard');
+    });
+
+    // --------------------------------------------------
+    // MODAL HANDLING
+    // --------------------------------------------------
+    const modal = document.getElementById('modal-template');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    function showModal(title, contentHtml, formCallback, onLoadCallback) {
+        modalTitle.textContent = title;
+        modalBody.innerHTML = contentHtml;
+        modal.classList.remove('hidden');
+        
+        if (onLoadCallback) {
+            onLoadCallback(modalBody);
+        }
+
+        const form = modalBody.querySelector('form');
+        if (form && formCallback) {
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+                formCallback(data);
+                hideModal();
+            };
+        }
+
+        modal.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.onclick = hideModal;
+        });
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                hideModal();
+            }
+        };
+    }
+
+    function hideModal() {
+        modal.classList.add('hidden');
+        modalTitle.textContent = '';
+        modalBody.innerHTML = '';
+        editingItemId = null;
+    }
+
+    function showAlertModal(title, message) {
+        const alertHtml = `
+            <p>${message}</p>
+            <div class="mt-6 text-left">
+                <button class="close-modal-btn bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700">موافق</button>
+            </div>
+        `;
+        showModal(title, alertHtml);
+    }
+
+    function showConfirmModal(title, message, onConfirm) {
+        const confirmHtml = `
+            <p>${message}</p>
+            <div class="mt-6 text-left">
+                <button class="close-modal-btn bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+                <button id="confirm-ok-btn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 ml-2">تأكيد</button>
+            </div>
+        `;
+        showModal(title, confirmHtml);
+        document.getElementById('confirm-ok-btn').onclick = () => {
+            onConfirm();
+            hideModal();
+        };
+    }
+
+    // --------------------------------------------------
+    // TEMPLATES & RENDER FUNCTIONS
+    // --------------------------------------------------
+    function renderSection(config) {
+        const container = document.getElementById(config.id);
+        if (!container) return;
+
+        let tableHeaders = config.columns.map(col => `<th scope="col" class="p-3">${col.header}</th>`).join('');
+        if (config.actions) {
+            tableHeaders += `<th scope="col" class="p-3 text-center">إجراءات</th>`;
+        }
+        
+        container.innerHTML = `
+            <div id="print-area">
+                <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+                    <h1 class="text-3xl font-bold">${config.title}</h1>
+                    <div class="flex gap-2 no-print">
+                        <button onclick="window.exportTableToCSV('${config.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <span>تصدير CSV</span>
+                        </button>
+                        <button onclick="window.printCurrentView()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            <span>طباعة</span>
+                        </button>
+                        <button onclick="window.handlers.add('${config.id}')" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            <span>${config.addButtonText}</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-4 no-print">
+                    <input type="text" id="search-${config.id}" class="w-full p-3 border rounded-lg" placeholder="ابحث في الجدول...">
+                </div>
+                <div class="overflow-x-auto bg-white rounded-lg shadow">
+                    <table class="w-full text-sm text-right text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>${tableHeaders}</tr>
+                        </thead>
+                        <tbody id="table-body-${config.id}"></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        renderTable(config.id, db[config.id] || []);
+
+        document.getElementById(`search-${config.id}`).addEventListener('keyup', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const tableBody = document.getElementById(`table-body-${config.id}`);
+            Array.from(tableBody.rows).forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(searchTerm) ? '' : 'none';
+            });
+        });
+    }
+
+    function renderTable(type, data) {
+        const tableBody = document.getElementById(`table-body-${type}`);
+        const config = configs[type];
+        if (!config) return;
+
+        if (data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="${config.columns.length + (config.actions ? 1 : 0)}" class="p-4 text-center text-gray-500">لا توجد بيانات لعرضها.</td></tr>`;
+            return;
+        }
+
+        tableBody.innerHTML = data.map(item => {
+            let cells = config.columns.map(col => `<td class="p-3 whitespace-nowrap">${formatCell(item[col.key], col.type, item)}</td>`).join('');
+            if (config.actions) {
+                cells += `<td class="p-3 text-center whitespace-nowrap">${config.actionButtons(type, item.id)}</td>`;
+            }
+            return `<tr class="bg-white border-b hover:bg-gray-50">${cells}</tr>`;
+        }).join('');
+    }
+    
+    /**
+     * Formats a phone number for WhatsApp links.
+     * Assumes Saudi Arabian numbers if not in international format.
+     * @param {string} phone - The phone number to format.
+     * @returns {string|null} The formatted number or null if input is invalid.
+     */
+    function formatWhatsappNumber(phone) {
+        if (!phone) return null;
+        // Remove all non-digit characters
+        let phoneNumber = String(phone).replace(/\D/g, ''); 
+        // Handle Saudi numbers starting with 05
+        if (phoneNumber.startsWith('05') && phoneNumber.length === 10) {
+            return '966' + phoneNumber.substring(1);
+        }
+        // Handle Saudi numbers starting with 5
+        if (phoneNumber.startsWith('5') && phoneNumber.length === 9) {
+            return '966' + phoneNumber;
+        }
+        // If it already has the country code
+        if (phoneNumber.startsWith('966') && phoneNumber.length === 12) {
+            return phoneNumber;
+        }
+        // Return the cleaned number for other cases
+        return phoneNumber;
+    }
+
+    function formatCell(value, type) {
+        if (value === undefined || value === null || value === '') return '-';
+        switch(type) {
+            case 'price':
+                return value;
+            case 'link':
+                return `<a href="${value}" target="_blank" class="text-teal-600 hover:underline">فتح الرابط</a>`;
+            case 'whatsapp':
+                const formattedPhone = formatWhatsappNumber(value);
+                if (!formattedPhone) return '-';
+                const whatsappUrl = `https://wa.me/${formattedPhone}`;
+                return `
+                    <a href="${whatsappUrl}" target="_blank" class="inline-flex items-center gap-2 text-green-600 hover:text-green-800 font-medium transition-colors duration-200">
+                        <span>${value}</span>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.31 20.58C8.75 21.39 10.36 21.82 12.04 21.82C17.5 21.82 21.95 17.37 21.95 11.91C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.04 14.69 2 12.04 2ZM12.04 20.13C10.48 20.13 8.98 19.69 7.67 18.89L7.33 18.67L4.31 19.49L5.15 16.55L4.92 16.21C4.04 14.83 3.59 13.28 3.59 11.91C3.59 7.31 7.4 3.49 12.04 3.49C14.28 3.49 16.33 4.36 17.89 5.93C19.45 7.49 20.32 9.54 20.32 11.91C20.32 16.51 16.68 20.13 12.04 20.13ZM16.56 14.46C16.33 14.93 15.34 15.45 14.97 15.54C14.6 15.63 14.12 15.64 13.79 15.46C13.46 15.28 12.57 14.96 11.54 14.02C10.25 12.84 9.54 11.41 9.36 11.1C9.18 10.79 9.04 10.62 8.85 10.33C8.67 10.04 8.53 9.87 8.4 9.68C8.27 9.49 8.14 9.31 8.02 9.12C7.9 8.93 7.72 8.76 7.52 8.47C7.32 8.18 7.12 7.89 7.12 7.56C7.12 7.23 7.29 6.95 7.47 6.77C7.65 6.59 7.87 6.5 8.08 6.5C8.26 6.5 8.42 6.5 8.56 6.51C8.71 6.53 8.85 6.53 8.99 6.77C9.13 7.01 9.35 7.54 9.45 7.68C9.55 7.82 9.64 7.99 9.59 8.13C9.54 8.27 9.49 8.36 9.35 8.5C9.21 8.64 9.09 8.75 8.99 8.85C8.89 8.95 8.78 9.06 8.92 9.3C9.06 9.54 9.44 10.11 9.96 10.6C10.73 11.33 11.42 11.68 11.66 11.82C11.9 11.96 12.08 11.94 12.22 11.77C12.38 11.58 12.78 11.04 13.02 10.75C13.26 10.46 13.51 10.41 13.75 10.5C13.99 10.59 14.86 11.03 15.09 11.13C15.32 11.23 15.5 11.27 15.59 11.37C15.68 11.47 15.68 11.75 15.45 12.22C15.22 12.69 14.69 13.21 14.46 13.39C14.23 13.57 14.23 13.71 14.41 13.85C14.59 13.99 15.22 14.23 15.45 14.32C15.68 14.41 15.82 14.41 15.96 14.46C16.1 14.51 16.33 13.99 16.56 14.46Z"/></svg>
+                    </a>
+                `;
+            case 'status':
+                let color = 'gray';
+                if (['متاح', 'مفتوح', 'تم', 'ساري', 'مكتمل', 'قيد التنفيذ'].includes(value)) color = 'green';
+                if (['موقوف', 'متأخر'].includes(value)) color = 'yellow';
+                if (['مباع', 'مغلق', 'ملغي'].includes(value)) color = 'red';
+                return `<span class="px-2 py-1 text-xs font-medium text-${color}-800 bg-${color}-100 rounded-full">${value}</span>`;
+            default:
+                return value;
+        }
+    }
+    
+    const renderFunctions = {
+        dashboard: renderDashboard,
+        offers: () => renderSection(configs.offers),
+        requests: () => renderSection(configs.requests),
+        rented: () => renderSection(configs.rented),
+        collections: () => renderSection(configs.collections),
+        expenses: () => renderSection(configs.expenses),
+        archive: renderArchive,
+    };
+
+    // --------------------------------------------------
+    // CONFIGURATIONS FOR EACH SECTION
+    // --------------------------------------------------
+    const defaultActionButtons = (type, id) => `
+        <button onclick="window.handlers.edit('${type}', '${id}')" class="text-blue-600 hover:text-blue-800 p-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+        </button>
+        <button onclick="window.handlers.archive('${type}', '${id}')" class="text-yellow-600 hover:text-yellow-800 p-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+        </button>
+    `;
+
+    const configs = {
+        offers: {
+            id: 'offers', title: 'إدارة العروض العقارية', addButtonText: 'إضافة عرض',
+            columns: [
+                { header: 'المسوق', key: 'marketerName' }, 
+                { header: 'جوال المسوق', key: 'marketerPhone', type: 'whatsapp' },
+                { header: 'نوع العرض', key: 'offerType' },
+                { header: 'نوع العقار', key: 'propertyType' }, { header: 'المدينة-الحي', key: 'location' },
+                { header: 'السعر', key: 'price', type: 'price' }, { header: 'الأطوال', key: 'propertyDimensions' },
+                { header: 'العمر', key: 'propertyAge' }, { header: 'الحالة', key: 'status', type: 'status' }
+            ]
+        },
+        requests: {
+            id: 'requests', title: 'إدارة الطلبات العقارية', addButtonText: 'إضافة طلب',
+            columns: [
+                { header: 'اسم العميل', key: 'clientName' }, 
+                { header: 'رقم التواصل', key: 'contactNumber', type: 'whatsapp' },
+                { header: 'نوع الطلب', key: 'requestType' }, { header: 'المدينة-الحي', key: 'location' },
+                { header: 'الميزانية', key: 'budget', type: 'price' }, { header: 'آخر تحديث', key: 'lastUpdate' },
+                { header: 'الحالة', key: 'status', type: 'status' }
+            ]
+        },
+        rented: {
+            id: 'rented', title: 'إدارة الأملاك والعقود', addButtonText: 'إضافة عقد',
+            columns: [
+                { header: 'عنوان العقار', key: 'propertyAddress' }, { header: 'اسم المالك', key: 'ownerName' },
+                { header: 'جوال المالك', key: 'ownerPhone', type: 'whatsapp' }, { header: 'اسم المستأجر', key: 'tenantName' },
+                { header: 'جوال المستأجر', key: 'tenantPhone', type: 'whatsapp' }, { header: 'نهاية العقد', key: 'contractEndDate' },
+                { header: 'قيمة الإيجار', key: 'rentValue', type: 'price' }, { header: 'حالة العقد', key: 'contractStatus', type: 'status' }
+            ]
+        },
+        collections: {
+            id: 'collections', title: 'إدارة التحصيل والصيانة', addButtonText: 'إضافة سجل',
+            columns: [
+                { header: 'تاريخ العملية', key: 'date' }, { header: 'نوع العملية', key: 'type' },
+                { header: 'قيمة الدفعة', key: 'amount', type: 'price' }, { header: 'العقار المرتبط', key: 'property' },
+                { header: 'الحالة', key: 'status', type: 'status' }, { header: 'تفاصيل', key: 'details' }
+            ]
+        },
+        expenses: {
+            id: 'expenses', title: 'إدارة المصروفات', addButtonText: 'إضافة مصروف',
+            columns: [
+                { header: 'التاريخ', key: 'date' }, { header: 'الفئة', key: 'category' },
+                { header: 'الوصف', key: 'description' }, { header: 'المبلغ', key: 'amount', type: 'price' }
+            ]
+        }
+    };
+    
+    Object.values(configs).forEach(config => {
+        config.actions = true;
+        config.actionButtons = defaultActionButtons;
+    });
+    
+    // --------------------------------------------------
+    // FORM GENERATORS
+    // --------------------------------------------------
+    function createFormInput(label, name, type = 'text', value = '', options = [], required = true) {
+        const req = required ? 'required' : '';
+        const commonClasses = "w-full p-2 border rounded-lg focus:ring-teal-500 focus:border-teal-500";
+        if (type === 'select') {
+            const optionsHtml = options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('');
+            return `<div class="mb-4"><label class="block mb-1 font-medium">${label}</label><select name="${name}" class="${commonClasses} bg-white" ${req}>${optionsHtml}</select></div>`;
+        }
+        if (type === 'textarea') {
+            return `<div class="mb-4"><label class="block mb-1 font-medium">${label}</label><textarea name="${name}" class="${commonClasses}" rows="3" ${req}>${value}</textarea></div>`;
+        }
+        return `<div class="mb-4"><label class="block mb-1 font-medium">${label}</label><input type="${type}" name="${name}" value="${value}" class="${commonClasses}" ${req}></div>`;
+    }
+
+    window.formGenerators = {
+        offers: (id = null) => {
+            editingItemId = id;
+            const item = id ? db.offers.find(o => o.id === id) : {};
+            const standardPropTypes = ['فيلا', 'شقة', 'أرض', 'عمارة', 'دور', 'محل تجاري'];
+            const isOtherType = item.propertyType && !standardPropTypes.includes(item.propertyType);
+
+            const formHtml = `
+                <form>
+                    <h4 class="text-lg font-bold mb-2 border-b pb-2">بيانات المسوق</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                        ${createFormInput('اسم المسوق', 'marketerName', 'text', item.marketerName || '')}
+                        ${createFormInput('رقم جواله', 'marketerPhone', 'tel', item.marketerPhone || '')}
+                    </div>
+
+                    <h4 class="text-lg font-bold mt-6 mb-2 border-b pb-2">البيانات الأساسية للعرض</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4">
+                        ${createFormInput('نوع العرض', 'offerType', 'select', item.offerType || 'بيع', ['بيع', 'إيجار'])}
+                        ${createFormInput('المدينة – الحي', 'location', 'text', item.location || '')}
+                        ${createFormInput('السعر', 'price', 'text', item.price || '', [], false)}
+                        ${createFormInput('الصفة', 'attribute', 'select', item.attribute || 'مالك مباشر', ['مالك مباشر', 'مكتب وساطة'])}
+                        ${createFormInput('حالة العرض', 'status', 'select', item.status || 'متاح', ['متاح', 'موقوف', 'مباع'])}
+                    </div>
+
+                    <h4 class="text-lg font-bold mt-6 mb-2 border-b pb-2">تفاصيل العقار</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4">
+                        <div>
+                            <label class="block mb-1 font-medium">نوع العقار</label>
+                            <select name="propertyType" id="propertyTypeSelect" class="w-full p-2 border rounded-lg bg-white" required>
+                                ${standardPropTypes.map(opt => `<option value="${opt}" ${item.propertyType === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                <option value="أخرى" ${isOtherType ? 'selected' : ''}>أخرى</option>
+                            </select>
+                        </div>
+                        <div id="customPropertyTypeContainer" class="hidden">
+                            <label class="block mb-1 font-medium">الرجاء تحديد النوع</label>
+                            <input type="text" name="customPropertyType" id="customPropertyTypeInput" class="w-full p-2 border rounded-lg" value="${isOtherType ? item.propertyType : ''}">
+                        </div>
+                        ${createFormInput('المساحة (م²)', 'area', 'text', item.area || '', [], false)}
+                        ${createFormInput('الأطوال (مثال: 20x30)', 'propertyDimensions', 'text', item.propertyDimensions || '', [], false)}
+                        ${createFormInput('عمر العقار (سنوات)', 'propertyAge', 'text', item.propertyAge || '', [], false)}
+                        ${createFormInput('عدد الأدوار', 'propertyFloors', 'text', item.propertyFloors || '', [], false)}
+                        ${createFormInput('عدد الغرف', 'propertyRooms', 'text', item.propertyRooms || '', [], false)}
+                        ${createFormInput('عدد دورات المياه', 'propertyBathrooms', 'text', item.propertyBathrooms || '', [], false)}
+                    </div>
+                    
+                    ${createFormInput('مواصفات إضافية (مسبح, مصعد..)', 'additionalSpecs', 'textarea', item.additionalSpecs || '', [], false)}
+
+                    <h4 class="text-lg font-bold mt-6 mb-2 border-b pb-2">الروابط</h4>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                        ${createFormInput('رابط موقع Google Maps', 'mapsLink', 'url', item.mapsLink || '', [], false)}
+                        ${createFormInput('رابط الصور', 'picsLink', 'url', item.picsLink || '', [], false)}
+                    </div>
+
+                    <div class="mt-6 text-left">
+                        <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+                        <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 ml-2">${id ? 'حفظ التعديلات' : 'إضافة العرض'}</button>
+                    </div>
+                </form>
+            `;
+            
+            const formCallback = (data) => {
+                if (data.propertyType === 'أخرى') {
+                    data.propertyType = data.customPropertyType;
+                }
+                delete data.customPropertyType;
+                saveItem('offers', data);
+            };
+
+            const onLoadCallback = (body) => {
+                const select = body.querySelector('#propertyTypeSelect');
+                const customContainer = body.querySelector('#customPropertyTypeContainer');
+                const customInput = body.querySelector('#customPropertyTypeInput');
+
+                const toggleCustom = () => {
+                    if (select.value === 'أخرى') {
+                        customContainer.classList.remove('hidden');
+                        customInput.required = true;
+                    } else {
+                        customContainer.classList.add('hidden');
+                        customInput.required = false;
+                        customInput.value = '';
+                    }
+                };
+                select.addEventListener('change', toggleCustom);
+                toggleCustom(); // Run on load
+            };
+
+            showModal(id ? 'تعديل عرض عقاري' : 'إضافة عرض عقاري جديد', formHtml, formCallback, onLoadCallback);
+        },
+        requests: (id = null) => {
+            editingItemId = id;
+            const item = id ? db.requests.find(r => r.id === id) : {};
+            const formHtml = `
+                <form>
+                    <h4 class="text-lg font-bold mb-2 border-b pb-2">بيانات العميل</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                        ${createFormInput('اسم العميل', 'clientName', 'text', item.clientName || '')}
+                        ${createFormInput('رقم التواصل', 'contactNumber', 'tel', item.contactNumber || '')}
+                    </div>
+
+                    <h4 class="text-lg font-bold mt-6 mb-2 border-b pb-2">تفاصيل الطلب</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4">
+                        ${createFormInput('نوع الطلب', 'requestType', 'select', item.requestType || 'شراء', ['شراء', 'إيجار'])}
+                        ${createFormInput('المدينة – الحي المطلوب', 'location', 'text', item.location || '')}
+                        ${createFormInput('الميزانية', 'budget', 'text', item.budget || '', [], false)}
+                        ${createFormInput('حالة الطلب', 'status', 'select', item.status || 'مفتوح', ['مفتوح', 'مغلق'])}
+                    </div>
+
+                    <h4 class="text-lg font-bold mt-6 mb-2 border-b pb-2">المتابعة والتحديثات</h4>
+                    ${createFormInput('آخر تحديث للطلب (مثال: تم عرض شقة الياسمين)', 'lastUpdate', 'textarea', item.lastUpdate || '', [], false)}
+                    ${createFormInput('ملاحظات عامة', 'notes', 'textarea', item.notes || '', [], false)}
+
+                    <div class="mt-6 text-left">
+                        <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+                        <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 ml-2">${id ? 'حفظ التعديلات' : 'إضافة الطلب'}</button>
+                    </div>
+                </form>
+            `;
+            showModal(id ? 'تعديل طلب عقاري' : 'إضافة طلب عقاري جديد', formHtml, (data) => saveItem('requests', data));
+        },
+        rented: (id = null) => {
+            editingItemId = id;
+            const item = id ? db.rented.find(r => r.id === id) : {};
+            const formHtml = `
+                <form>
+                    <h4 class="text-lg font-bold mb-2 border-b pb-2">بيانات العقار والمالك</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 mb-4">
+                        ${createFormInput('عنوان العقار (مثال: فيلا ١٢، حي الياسمين)', 'propertyAddress', 'text', item.propertyAddress || '')}
+                        ${createFormInput('نوع العقار', 'propertyType', 'text', item.propertyType || '', [], false)}
+                        ${createFormInput('اسم المالك', 'ownerName', 'text', item.ownerName || '')}
+                        ${createFormInput('رقم جوال المالك', 'ownerPhone', 'tel', item.ownerPhone || '', [], false)}
+                    </div>
+
+                    <h4 class="text-lg font-bold mb-2 mt-6 border-b pb-2">بيانات المستأجر</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 mb-4">
+                        ${createFormInput('اسم المستأجر', 'tenantName', 'text', item.tenantName || '')}
+                        ${createFormInput('رقم جوال المستأجر', 'tenantPhone', 'tel', item.tenantPhone || '')}
+                    </div>
+
+                    <h4 class="text-lg font-bold mb-2 mt-6 border-b pb-2">تفاصيل العقد</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4">
+                        ${createFormInput('تاريخ بداية العقد', 'contractStartDate', 'date', item.contractStartDate || '', [], false)}
+                        ${createFormInput('تاريخ نهاية العقد', 'contractEndDate', 'date', item.contractEndDate || '', [], false)}
+                        ${createFormInput('قيمة الإيجار (السنوي)', 'rentValue', 'text', item.rentValue || '', [], false)}
+                        ${createFormInput('شروط الدفع', 'paymentTerms', 'text', item.paymentTerms || 'ربع سنوي', [], false)}
+                        ${createFormInput('حالة العقد', 'contractStatus', 'select', item.contractStatus || 'ساري', ['ساري', 'منتهي', 'ملغي'])}
+                    </div>
+                    
+                    ${createFormInput('ملاحظات / سجل الدفعات', 'notes', 'textarea', item.notes || '', [], false)}
+
+                    <div class="mt-6 text-left">
+                        <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+                        <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 ml-2">${id ? 'حفظ التعديلات' : 'إضافة العقد'}</button>
+                    </div>
+                </form>
+            `;
+            showModal(id ? 'تعديل بيانات العقد' : 'إضافة عقد جديد', formHtml, (data) => saveItem('rented', data));
+        },
+        collections: (id = null) => {
+            editingItemId = id;
+            const item = id ? db.collections.find(c => c.id === id) : {};
+            const formHtml = `
+                <form>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                        ${createFormInput('تاريخ العملية', 'date', 'date', item.date || '')}
+                        ${createFormInput('نوع العملية', 'type', 'select', item.type || 'تحصيل دفعة', ['تحصيل دفعة', 'طلب صيانة'])}
+                        ${createFormInput('قيمة الدفعة', 'amount', 'text', item.amount || '', [], false)}
+                        ${createFormInput('العقار المرتبط', 'property', 'text', item.property || '')}
+                        ${createFormInput('الحالة', 'status', 'select', item.status || 'تم', ['تم', 'متأخر', 'قيد التنفيذ', 'مكتمل'])}
+                    </div>
+                    ${createFormInput('تفاصيل', 'details', 'textarea', item.details || '', [], false)}
+                    <div class="mt-6 text-left">
+                        <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+                        <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 ml-2">${id ? 'حفظ التعديلات' : 'إضافة سجل'}</button>
+                    </div>
+                </form>
+            `;
+            showModal(id ? 'تعديل سجل' : 'إضافة سجل تحصيل أو صيانة', formHtml, (data) => saveItem('collections', data));
+        },
+        expenses: (id = null) => {
+            editingItemId = id;
+            const item = id ? db.expenses.find(e => e.id === id) : {};
+            const formHtml = `
+                <form>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                        ${createFormInput('تاريخ المصروف', 'date', 'date', item.date || '')}
+                        ${createFormInput('الفئة', 'category', 'select', item.category || 'تسويق', ['تسويق', 'إيجار مكتب', 'رواتب', 'فواتير', 'أخرى'])}
+                        ${createFormInput('المبلغ', 'amount', 'text', item.amount || '', [], true)}
+                    </div>
+                    ${createFormInput('وصف المصروف', 'description', 'textarea', item.description || '', [], false)}
+                    <div class="mt-6 text-left">
+                        <button type="button" class="close-modal-btn bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300">إلغاء</button>
+                        <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 ml-2">${id ? 'حفظ التعديلات' : 'إضافة مصروف'}</button>
+                    </div>
+                </form>
+            `;
+            showModal(id ? 'تعديل مصروف' : 'إضافة مصروف جديد', formHtml, (data) => saveItem('expenses', data));
+        }
+    };
+    
+    // --------------------------------------------------
+    // DATA MANIPULATION (CRUD) & EVENT HANDLERS
+    // --------------------------------------------------
+    function saveItem(type, data) {
+        if (editingItemId) {
+            const index = db[type].findIndex(item => item.id === editingItemId);
+            if (index > -1) {
+                db[type][index] = { ...db[type][index], ...data };
+            }
+        } else {
+            data.id = `id_${new Date().getTime()}`;
+            db[type].push(data);
+        }
+        saveDatabase();
+        renderFunctions[type]();
+        updateDashboardStats();
+    }
+
+    function archiveItem(type, id) {
+        const itemIndex = db[type].findIndex(item => item.id === id);
+        if (itemIndex > -1) {
+            const itemToArchive = db[type][itemIndex];
+            db.archive[type].push(itemToArchive);
+            db[type].splice(itemIndex, 1);
+            saveDatabase();
+            renderFunctions[type]();
+            updateDashboardStats();
+        }
+    }
+
+    function restoreItem(type, id) {
+        const itemIndex = db.archive[type].findIndex(item => item.id === id);
+        if (itemIndex > -1) {
+            const itemToRestore = db.archive[type][itemIndex];
+            db[type].push(itemToRestore);
+            db.archive[type].splice(itemIndex, 1);
+            saveDatabase();
+            renderArchive();
+        }
+    }
+
+    function deletePermanently(type, id) {
+        showConfirmModal(
+            'حذف نهائي', 
+            'هل أنت متأكد؟ سيتم حذف هذا السجل بشكل نهائي ولا يمكن استعادته.',
+            () => {
+                db.archive[type] = db.archive[type].filter(item => item.id !== id);
+                saveDatabase();
+                renderArchive();
+            }
+        );
+    }
+
+
+    window.handlers = {
+        add: (type) => formGenerators[type](),
+        edit: (type, id) => formGenerators[type](id),
+        archive: (type, id) => {
+            if (type === 'expenses' || type === 'collections' || type === 'rented') {
+                 showConfirmModal(
+                    'تأكيد الحذف', 
+                    'هل أنت متأكد من رغبتك في حذف هذا السجل؟',
+                    () => {
+                        db[type] = db[type].filter(item => item.id !== id);
+                        saveDatabase();
+                        renderFunctions[type]();
+                        updateDashboardStats();
+                    }
+                );
+            } else {
+                archiveItem(type, id);
+            }
+        },
+        restore: restoreItem,
+        deletePermanently: deletePermanently
+    };
+
+    // --------------------------------------------------
+    // DASHBOARD, TASKS & NOTES
+    // --------------------------------------------------
+    function renderDashboard() {
+        updateDashboardStats();
+        renderAlerts();
+        const notesArea = document.getElementById('notes-area');
+        notesArea.value = db.notes || '';
+        renderTasks();
+        setupTaskHandlers();
+    }
+
+    function renderAlerts() {
+        const alertsContainer = document.getElementById('alerts-container');
+        if (!alertsContainer) return;
+        alertsContainer.innerHTML = '';
+        let alertsFound = false;
+
+        // Contracts ending soon
+        const today = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+        db.rented.forEach(contract => {
+            if (contract.contractEndDate) {
+                const endDate = new Date(contract.contractEndDate);
+                if (endDate <= thirtyDaysFromNow && endDate >= today) {
+                    alertsFound = true;
+                    alertsContainer.innerHTML += `
+                        <div class="bg-yellow-100 p-3 rounded-lg flex items-center gap-3">
+                            <svg class="w-6 h-6 text-yellow-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <p class="text-sm">عقد <span class="font-bold">${contract.propertyAddress}</span> للمستأجر <span class="font-bold">${contract.tenantName}</span> سينتهي قريبًا.</p>
+                        </div>
+                    `;
+                }
+            }
+        });
+
+        // Overdue collections
+        db.collections.forEach(item => {
+            if (item.status === 'متأخر') {
+                alertsFound = true;
+                alertsContainer.innerHTML += `
+                    <div class="bg-red-100 p-3 rounded-lg flex items-center gap-3">
+                        <svg class="w-6 h-6 text-red-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <p class="text-sm">لديك تحصيل <span class="font-bold">متأخر</span> للعقار <span class="font-bold">${item.property}</span> بقيمة ${item.amount}.</p>
+                    </div>
+                `;
+            }
+        });
+
+        if (!alertsFound) {
+            alertsContainer.innerHTML = `<p class="text-gray-500 text-center py-4">لا توجد تنبيهات حاليًا.</p>`;
+        }
+    }
+
+    function updateDashboardStats() {
+        document.getElementById('stats-offers').textContent = db.offers.length;
+        document.getElementById('stats-requests').textContent = db.requests.length;
+        document.getElementById('stats-rented').textContent = db.rented.filter(c => c.contractStatus === 'ساري').length;
+    }
+    
+    document.getElementById('notes-area')?.addEventListener('keyup', () => {
+        db.notes = document.getElementById('notes-area').value;
+        saveDatabase();
+    });
+
+    // -- Task Functions --
+    function getPriorityColor(priority) {
+        switch(String(priority)) {
+            case '5': return 'bg-red-100';
+            case '4': return 'bg-orange-100';
+            case '3': return 'bg-yellow-100';
+            case '2': return 'bg-blue-100';
+            case '1': return 'bg-green-100';
+            default: return 'bg-gray-100';
+        }
+    }
+
+    function renderTasks() {
+        const taskList = document.getElementById('task-list');
+        if (!taskList) return;
+        taskList.innerHTML = ''; 
+
+        if (db.tasks.length === 0) {
+            taskList.innerHTML = `<p class="text-gray-500 text-center py-4">لا توجد مهام حاليًا.</p>`;
+            return;
+        }
+        
+        const sortedTasks = [...db.tasks].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+
+        sortedTasks.forEach(task => {
+            const taskEl = document.createElement('div');
+            const bgColor = getPriorityColor(task.priority);
+            taskEl.className = `flex items-center justify-between p-2 rounded-lg hover:bg-gray-200 ${bgColor}`;
+            taskEl.innerHTML = `
+                <div class="flex items-center">
+                    <input type="checkbox" data-task-id="${task.id}" class="task-checkbox ml-3 w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer" ${task.completed ? 'checked' : ''}>
+                    <label class="cursor-pointer ${task.completed ? 'line-through text-gray-400' : ''}">${task.text}</label>
+                </div>
+                <button data-task-id="${task.id}" class="delete-task-btn text-red-500 hover:text-red-700 p-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            `;
+            taskList.appendChild(taskEl);
+        });
+    }
+
+    function setupTaskHandlers() {
+        const taskForm = document.getElementById('task-form');
+        const taskInput = document.getElementById('task-input');
+        const taskPriority = document.getElementById('task-priority');
+        const taskList = document.getElementById('task-list');
+
+        taskForm.onsubmit = (e) => {
+            e.preventDefault();
+            const text = taskInput.value.trim();
+            const priority = taskPriority.value;
+            if (text) {
+                addTask(text, priority);
+                taskInput.value = '';
+                taskPriority.value = '3';
+            }
+        };
+
+        taskList.onclick = (e) => {
+            const checkbox = e.target.closest('.task-checkbox');
+            const deleteBtn = e.target.closest('.delete-task-btn');
+
+            if (checkbox) {
+                toggleTask(checkbox.dataset.taskId);
+            } else if (deleteBtn) {
+                deleteTask(deleteBtn.dataset.taskId);
+            }
+        };
+    }
+
+    function addTask(text, priority) {
+        db.tasks.unshift({
+            id: `task_${new Date().getTime()}`,
+            text: text,
+            priority: priority,
+            completed: false
+        });
+        saveDatabase();
+        renderTasks();
+    }
+
+    function toggleTask(id) {
+        const task = db.tasks.find(t => t.id === id);
+        if (task) {
+            task.completed = !task.completed;
+            saveDatabase();
+            renderTasks();
+        }
+    }
+
+    function deleteTask(id) {
+        db.tasks = db.tasks.filter(t => t.id !== id);
+        saveDatabase();
+        renderTasks();
+    }
+
+    // --------------------------------------------------
+    // ARCHIVE PAGE
+    // --------------------------------------------------
+    function renderArchive() {
+        const container = document.getElementById('archive');
+        container.innerHTML = `<h1 class="text-3xl font-bold mb-6">الأرشيف</h1>`;
+
+        // Archived Offers
+        const offersConfig = { ...configs.offers, id: 'archiveOffers', title: 'العروض المؤرشفة', actions: true, actionButtons: archiveActionButtons };
+        container.innerHTML += `<div id="archiveOffers" class="mb-8"></div>`;
+        renderSectionForArchive(offersConfig, db.archive.offers);
+
+        // Archived Requests
+        const requestsConfig = { ...configs.requests, id: 'archiveRequests', title: 'الطلبات المؤرشفة', actions: true, actionButtons: archiveActionButtons };
+        container.innerHTML += `<div id="archiveRequests"></div>`;
+        renderSectionForArchive(requestsConfig, db.archive.requests);
+    }
+
+    function renderSectionForArchive(config, data) {
+        const container = document.getElementById(config.id);
+        let tableHeaders = config.columns.map(col => `<th scope="col" class="p-3">${col.header}</th>`).join('');
+        tableHeaders += `<th scope="col" class="p-3 text-center">إجراءات</th>`;
+        
+        container.innerHTML = `
+            <h2 class="text-2xl font-bold mb-4">${config.title}</h2>
+            <div class="overflow-x-auto bg-white rounded-lg shadow">
+                <table class="w-full text-sm text-right text-gray-600">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                        <tr>${tableHeaders}</tr>
+                    </thead>
+                    <tbody id="table-body-${config.id}"></tbody>
+                </table>
+            </div>
+        `;
+        renderTable(config.id, data);
+    }
+
+    const archiveActionButtons = (type, id) => {
+        const originalType = type.replace('archive', '').toLowerCase();
+        return `
+            <button onclick="window.handlers.restore('${originalType}', '${id}')" class="text-green-600 hover:text-green-800 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H4a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+            </button>
+            <button onclick="window.handlers.deletePermanently('${originalType}', '${id}')" class="text-red-600 hover:text-red-800 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        `;
+    };
+
+    configs.archiveOffers = { ...configs.offers, id: 'archiveOffers', actionButtons: archiveActionButtons, actions: true };
+    configs.archiveRequests = { ...configs.requests, id: 'archiveRequests', actionButtons: archiveActionButtons, actions: true };
+
+
+    // --------------------------------------------------
+    // IMPORT & EXPORT ALL DATA
+    // --------------------------------------------------
+    function exportAllData() {
+        try {
+            const dataStr = JSON.stringify(db, null, 2); // Pretty print JSON
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const userNameForFile = currentUserName ? `_${currentUserName.replace(/\s/g, '_')}` : '';
+            link.download = `real_estate_backup${userNameForFile}_${new Date().toISOString().slice(0,10)}.json`;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error exporting data:", error);
+            showAlertModal('خطأ في التصدير', 'حدث خطأ غير متوقع أثناء محاولة تصدير البيانات.');
+        }
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedDb = JSON.parse(e.target.result);
+
+                // Basic validation to check if it's a valid DB file
+                if (typeof importedDb === 'object' && importedDb !== null && 'offers' in importedDb && 'requests' in importedDb) {
+                     showConfirmModal(
+                        'تأكيد الاستيراد', 
+                        'تحذير: سيؤدي استيراد البيانات إلى الكتابة فوق جميع بياناتك الحالية. هل أنت متأكد من أنك تريد المتابعة؟ لا يمكن التراجع عن هذا الإجراء.',
+                        () => {
+                            localStorage.setItem('realEstateDb', JSON.stringify(importedDb));
+                            showAlertModal('نجاح', 'تم استيراد البيانات بنجاح. سيتم تحديث الصفحة الآن.');
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1500);
+                        }
+                    );
+                } else {
+                    throw new Error("Invalid file structure.");
+                }
+            } catch (error) {
+                console.error("Error importing data:", error);
+                showAlertModal('خطأ في الاستيراد', 'الملف الذي تم اختياره غير صالح أو تالف. الرجاء التأكد من اختيار ملف تصدير صحيح.');
+            } finally {
+                // Reset the file input so the user can select the same file again if needed
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // --------------------------------------------------
+    // INITIALIZATION
+    // --------------------------------------------------
+    loadDatabase();
+    if (!currentUserName) {
+        showLoginModal();
+    } else {
+        hideLoginModal();
+        displayUserName();
+    }
+    loginForm.addEventListener('submit', handleLogin);
+    termsLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        showTermsModal();
+    });
+    closeTermsModalBtn.addEventListener('click', hideTermsModal);
+    termsCheckbox.addEventListener('change', () => {
+        loginButton.disabled = !termsCheckbox.checked;
+    });
+    
+    // Add event listeners for new buttons
+    document.getElementById('export-all-btn').addEventListener('click', exportAllData);
+    document.getElementById('import-file-input').addEventListener('change', importData);
+
+    navigateTo(window.location.hash || '#dashboard');
+});
+</script>
+
+</body>
+</html>
